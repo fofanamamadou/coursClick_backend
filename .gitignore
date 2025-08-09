@@ -1,0 +1,45 @@
+# Environnement virtuel
+.venv/
+venv/
+
+# Fichiers d'environnement
+src/.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Base de données SQLite (si utilisée)
+db.sqlite3
+db.sqlite3-journal
+
+# Fichiers de logs
+*.log
+
+# Fichiers compilés
+*.so
+
+# Fichiers temporaires
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Mac / Windows / Linux spécifiques
+.DS_Store
+Thumbs.db
+
+# Cache
+*.cache
+.cache/
+*.pytest_cache/
+.pytest_cache/
+
+# Migrations (optionnel : ne pas ignorer si vous voulez les garder dans le dépôt)
+# */migrations/__pycache__/
+# */migrations/*.py
+
+# Node (si projet avec frontend intégré)
+node_modules/
