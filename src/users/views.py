@@ -1,24 +1,22 @@
 import os
 import datetime
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from .permissions import IsProfessor, IsStudent, IsSuperuser, IsAnyAdmin, IsRegularAdmin
-from rest_framework.response import Response
-from rest_framework import  status
+from .permissions import IsSuperuser, IsAnyAdmin
 from .models import User
-from .models import Role
+from users.serializers import UserSerializer
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from .serializers import UserSerializer
-from .serializers import RoleSerializer
 from .utils import send_mail_html
-from module.serializers import ModuleSerializers
 
 from django.utils.crypto import get_random_string
-
-# Constante pour régler la tolérance de correspondance
-FACE_MATCH_THRESHOLD = 0.65
-
-
-
 
 
 @api_view(['POST', 'GET'])
@@ -40,18 +38,6 @@ def users_view(request):
 
             # Récupérer l'utilisateur dans la base de donnée avec l'email
             user = User.objects.filter(email=email).first()
-            # Renommer la photo
-            if user.photo:
-                original_path = user.photo.path
-                extension = os.path.splitext(original_path)[1]  # ex: '.jpg'
-                new_filename = f"user_{user.id}{extension}"
-                new_path = os.path.join(os.path.dirname(original_path), new_filename)
-
-                os.rename(original_path, new_path)
-
-                # Mettre à jour le nom stocké dans la base
-                user.photo.name = f"photos/{new_filename}"
-                user.save(update_fields=['photo'])
             # Générer un mot de passe pour l'utilisateur
             password = get_random_string(8)
             #L'attribuer a l'utilisatur
@@ -94,7 +80,7 @@ def users_details_view(request, id) :
     if request.method == "GET":
         serializer = UserSerializer(user)
         return Response(serializer.data, status= status.HTTP_200_OK)
-    
+
     # Seuls les superutilisateurs peuvent modifier ou supprimer
     if not request.user.is_superuser:
         return Response({"message": "Action non autorisée."}, status=status.HTTP_403_FORBIDDEN)
@@ -110,58 +96,8 @@ def users_details_view(request, id) :
         user.delete()
         return Response({"message": "Utilisateur supprimée"}, status=status.HTTP_204_NO_CONTENT)
 
-@api_view(['POST'])
-def reset_password_view(request):
-    # Récuperer l'email de l'utilisateur dans le formulaire
-    email = request.data['email']
-
-    # Récupérer l'utilisateur dans la base de donnée ayant ce mail
-    user = User.objects.filter(email= email).first()
-
-    if not user:
-        return Response(data= {"message": "E-mail incorrect !"}, status= status.HTTP_404_NOT_FOUND)
-
-    # Générer un nouveau mot de passe pour l'utilisateur
-    new_password = get_random_string(8)
-
-    user.set_password(new_password)
-    user.save()
-
-    # Envoyer le nouveau mot de passe par mail
-    subject = "New password | FaceLoadIdentity"
-    # Le template html qu'on souhaite envoyer
-    custom_template = 'new_password.html'
-    first_name = user.first_name
-    # Les variables qu'on souhaite transmèttre le mail
-    context = {
-        "date": datetime.date.today(),
-        "email": email,
-        "new_password": new_password,
-        "first_name": first_name
-    }
-    receivers = [email]
-    # Appeler notre fonction pour envoyer le mail
-    send_mail_html(subject=subject, receivers=receivers, template=custom_template, context=context)
-    return Response(data= {"message": "Vérifier votre boîte mail !"}, status= status.HTTP_200_OK)
 
 
-
-
-#@api_view(['GET'])
-#@permission_classes([IsAuthenticated])
-#def user_detail_view(request, user_pk):
- #   """
-  #  API pour retrouver un utilisateur par son ID
-   # """
-    #user = User.objects.filter(pk = user_pk).first()
-
-    # Vérifier si l'utilisateur existe
-    #if not user:
-    #    return Response(data={"message": f"Utilisateur non trouvé avec ID:{user_pk} "}, status= status.HTTP_404_NOT_FOUND)
-
-   # if request.method == "GET":
-    #    serializer = UserSerializer(user)
-  #      return Response(serializer.data, status= status.HTTP_200_OK)
 
 
 #Recuperer la liste des etudiants
@@ -178,14 +114,6 @@ def list_students(request):
 def list_professors(request):
     professors = User.get_professors()
     serializer = UserSerializer(professors, many=True)
-    return Response(serializer.data)
-
-#Recuperer la liste des personnels
-@api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAnyAdmin])
-def list_personnels(request):
-    personnels = User.get_personnels()
-    serializer = UserSerializer(personnels, many=True)
     return Response(serializer.data)
 
 #Recuperer la liste des admins
@@ -214,28 +142,6 @@ def disable_user_view(request, user_pk):
         return Response({"message": f"Utilisateur {action} avec succès."}, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def update_password_view(request):
-    # Récupérer l'utilisateur connecté
-    user = request.user
-
-    old_password = request.data.get('old_password')
-    new_password = request.data.get('new_password')
-    password_confirm = request.data.get('password_confirm')
-
-    # Vérifier si l'ancien mot de passe de l'utilisateur est correcte
-    if not user.check_password(old_password):
-        return Response(data= {"message": "Ancien mot de passe incorrect !"}, status= status.HTTP_400_BAD_REQUEST)
-
-    if new_password != password_confirm:
-        return Response(data= {"message": "Nouveau mot de passe et le mot de passe de confirmation sont incorrecte !"}, status= status.HTTP_400_BAD_REQUEST)
-
-    # Mises à jour du mot de passe
-    user.set_password(new_password)
-    user.save()
-    return Response(data= {"message": "Mot de passe changé avec succès !"}, status= status.HTTP_200_OK)
-
 
 
 #Fonction pour creer des admins
@@ -258,7 +164,7 @@ def create_admin_view(request):
     user = User.objects.create_user(email=email, password=password, first_name = first_name, last_name =last_name, is_staff=True, is_superuser=False)
 
     # Envoyer le mot de passe par mail
-    subject = "Password | FaceLoadIdentity"
+    subject = "Password | CoursClick"
     # Le template html qu'on souhaite envoyer
     custom_template = 'new_password.html'
     # Les variables qu'on souhaite transmèttre le mail
@@ -275,26 +181,3 @@ def create_admin_view(request):
     return Response({"message": f"Administrateur créé : {user.email}"}, status=status.HTTP_201_CREATED)
 
 
-from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import CustomTokenObtainPairSerializer
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
-
-
-# Fonction pour recuperer les modules d'un professeur
-@api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAnyAdmin])
-def get_professor_modules(request, professor_id):
-    """
-    API pour récupérer les modules d'un professeur via son ID
-    """
-    user = User.objects.filter(id=professor_id, roles__name='PROFESSOR').first()
-
-    if not user:
-        return Response({"message": f"Aucun professeur trouvé avec l'ID : {professor_id}"}, status=status.HTTP_404_NOT_FOUND)
-
-    modules = user.modules.all()
-    serializer = ModuleSerializers(modules, many=True)
-
-    return Response(serializer.data, status=status.HTTP_200_OK)

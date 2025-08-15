@@ -5,6 +5,7 @@ from classe.models import Classe
 from filiere.models import Filiere
 from module.models import Module
 from role.models import Role
+from django.utils import timezone
 
 
 
@@ -51,6 +52,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Relation entre la table User et Role
     roles = models.ManyToManyField(Role, related_name="users" )
 
+    # Dans votre modèle User backend
+    date_joined = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
@@ -66,10 +69,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     @classmethod
     def get_professors(cls):
         return cls.objects.filter(roles__name='PROFESSOR').distinct()
-
-    @classmethod
-    def get_personnels(cls):
-        return cls.objects.filter(roles__name='PERSONNEL').distinct()
 
     @classmethod
     def get_admins(cls):

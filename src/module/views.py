@@ -6,6 +6,7 @@ from rest_framework import status
 from .serializers import ModuleSerializers
 from rest_framework.permissions import IsAuthenticated
 from .models import Module
+from users.permissions import IsAnyAdmin
 # Create your views here.
 
 @api_view(['POST','GET'])
@@ -44,3 +45,20 @@ def module_detail_view(request, id) :
     elif request.method == 'DELETE':
         module.delete()
         return Response({"message": "Module supprimée"}, status=status.HTTP_204_NO_CONTENT)
+
+# Fonction pour recuperer les modules d'un professeur
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAnyAdmin])
+def get_professor_modules(request, professor_id):
+    """
+    API pour récupérer les modules d'un professeur via son ID
+    """
+    user = User.objects.filter(id=professor_id, roles__name='PROFESSOR').first()
+
+    if not user:
+        return Response({"message": f"Aucun professeur trouvé avec l'ID : {professor_id}"}, status=status.HTTP_404_NOT_FOUND)
+
+    modules = user.modules.all()
+    serializer = ModuleSerializers(modules, many=True)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)

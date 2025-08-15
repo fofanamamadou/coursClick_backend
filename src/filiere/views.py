@@ -36,10 +36,12 @@ def filiere_detail_view(request, id) :
         return Response(data={"message": f"Filiere non trouve avec ID :{id} "}, status= status.HTTP_404_NOT_FOUND)
 
     if request.method == "GET":
-        serializer = FiliereSerializer(Filiere)
+        # Utilisez l'instance "filiere" que vous avez récupérée
+        serializer = FiliereSerializer(filiere)
         return Response(serializer.data, status= status.HTTP_200_OK)
     elif request.method == 'PUT':
-        serializer = FiliereSerializer(Filiere, data=request.data)
+        # Mettez à jour l'instance "filiere" avec les nouvelles données
+        serializer = FiliereSerializer(filiere, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -48,5 +50,3 @@ def filiere_detail_view(request, id) :
     elif request.method == 'DELETE':
         filiere.delete()
         return Response({"message": "filiere supprimée"}, status=status.HTTP_204_NO_CONTENT)
-
-

@@ -14,12 +14,11 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from tkinter.font import names
-
 from django.contrib import admin
 from django.urls import path, include
 
 from .settings import DEBUG,MEDIA_URL,MEDIA_ROOT
+from .views import dashboard_api_view
 
 from django.conf.urls.static import static
 
@@ -33,6 +32,9 @@ from rest_framework_simplejwt.views import (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Endpoint pour le dashboard
+    path("api/v1/dashboard/", dashboard_api_view, name="api_dashboard"),
+
     # Les Endpoints pour les API
     path("api/v1/", include("users.urls")),
     path("api/v1/", include("absences.urls")),
@@ -47,7 +49,7 @@ urlpatterns = [
 
 
     # Token
-    path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 
 # Ajouter cette ligne pour servir les fichiers image
