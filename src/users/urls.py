@@ -38,11 +38,11 @@ urlpatterns = [
     path('auth/', include(auth_patterns)),
 
     # URLs pour la gestion des utilisateurs
-    path("users", users_view),
-    path("users/students", list_students),
-    path("users/admins", list_admins),
-    path("users/professors", list_professors),
-    path("users/<int:id>", users_details_view),
-    path("users/create-admin", create_admin_view),
-    path("users/<int:user_pk>/disable", disable_user_view),
+    path("users/", users_view),
+    path("users/students/", list_students),
+    path("users/admins/", list_admins),
+    path("users/professors/", list_professors),
+    path("users/<int:id>/", users_details_view),
+    path("users/create-admin/", create_admin_view),
+    path("users/<int:user_pk>/disable/", disable_user_view),
 ]

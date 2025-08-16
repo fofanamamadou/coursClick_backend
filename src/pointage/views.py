@@ -1,25 +1,18 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import PageNumberPagination
 from django.utils import timezone
 from datetime import datetime, timedelta
 import random
 import string
 from geopy.distance import geodesic
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from random import choice, randint
-
-from users.permissions import IsProfessor  # Assurez-vous que ce fichier existe bien
-
 
 from .models import SessionPresence, Pointage, Planning
 from .serializers import CreateSessionPresenceSerializer, ValidatePresenceSerializer, SessionPresenceSerializer, PointageSerializer, StudentPresenceSerializer
-from users.models import User  # Assurez-vous que c'est le bon chemin pour votre modèle User
-
+from users.models import User
 from users.permissions import IsProfessor, IsStudent
 
 def generate_unique_code():
@@ -46,12 +39,9 @@ class CreateSessionPresenceView(APIView):
             except Planning.DoesNotExist:
                 return Response({'error': 'Planning non trouvé.'}, status=status.HTTP_404_NOT_FOUND)
 
-            # Vérifier si le professeur est bien celui du planning
-            # Note: Adaptez 'professeur' au champ ForeignKey dans votre modèle Planning
             if planning.user != request.user:
                  return Response({'error': 'Vous n\'etes pas autorise a lancer l\'appel pour ce cours.'}, status=status.HTTP_403_FORBIDDEN)
 
-            # Vérifier si l\'heure actuelle est dans la plage autorisée
             now = timezone.now()
             course_start_time = timezone.make_aware(datetime.combine(planning.date, planning.horaire.time_start_course))
             course_end_time = timezone.make_aware(datetime.combine(planning.date, planning.horaire.time_end_course))
@@ -62,14 +52,12 @@ class CreateSessionPresenceView(APIView):
                     'error': 'La génération du code de présence n\'est possible qu\'entre le début du cours et 30 minutes avant la fin.'
                 }, status=status.HTTP_403_FORBIDDEN)
 
-
-            # Crée la session
             session = SessionPresence.objects.create(
                 planning=planning,
                 code=generate_unique_code(),
                 latitude=validated_data['latitude'],
                 longitude=validated_data['longitude'],
-                end_time=timezone.now() + timedelta(minutes=5) # Fenêtre de 5 minutes
+                end_time=timezone.now() + timedelta(minutes=5)
             )
 
             response_serializer = SessionPresenceSerializer(session)
@@ -79,7 +67,7 @@ class CreateSessionPresenceView(APIView):
 
 class ValidatePresenceView(APIView):
     """
-    Vue pour qu\'un étudiant puisse valider sa présence.
+    Vue pour qu'un étudiant puisse valider sa présence.
     """
     permission_classes = [IsStudent]
 
@@ -95,22 +83,23 @@ class ValidatePresenceView(APIView):
             except SessionPresence.DoesNotExist:
                 return Response({'error': 'Code de session invalide ou expiré.'}, status=status.HTTP_404_NOT_FOUND)
 
-            # Vérification de la distance
             professor_coords = (session.latitude, session.longitude)
             distance = geodesic(student_coords, professor_coords).meters
 
-            if distance > 100: # Seuil de 100 mètres
+            if distance > 100:
                 return Response({
                     'error': 'Vous êtes trop loin de la salle de classe.',
                     'distance_meters': round(distance)
                 }, status=status.HTTP_403_FORBIDDEN)
 
-            # Vérifier si l\'étudiant est inscrit au cours
-            # Note: Cette logique dépend de votre structure. Adaptez-la.
-            # Exemple: si la classe de l\'étudiant est liée au planning
-            if request.user.classe not in session.planning.classes.all():
-                 return Response({'error': 'Vous n\'etes pas inscrit a ce cours.'}, status=status.HTTP_403_FORBIDDEN)
+            # Vérifier si l'étudiant est inscrit au cours
+            planning = session.planning
+            module_du_cours = planning.module
+            if not module_du_cours or not module_du_cours.classe:
+                return Response({'error': 'Impossible de vérifier la classe pour ce cours.'}, status=status.HTTP_400_BAD_REQUEST)
 
+            if request.user.classe != module_du_cours.classe:
+                 return Response({'error': 'Vous n\'etes pas inscrit a ce cours.'}, status=status.HTTP_403_FORBIDDEN)
 
             pointage, created = Pointage.objects.get_or_create(
                 session=session,
@@ -124,15 +113,17 @@ class ValidatePresenceView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['GET'])
-@permission_classes([IsAdminUser])
-def list_presences_view(request):
+class PointageListView(generics.ListAPIView):
     """
-    Vue pour lister toutes les présences des étudiants.
+    Vue pour lister toutes les présences des étudiants, avec pagination.
+    Accessible uniquement par les administrateurs.
     """
-    presences = Pointage.objects.all()
-    serializer = PointageSerializer(presences, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    serializer_class = PointageSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = PageNumberPagination
+
+    def get_queryset(self):
+        return Pointage.objects.select_related('user', 'session__planning').all().order_by('-timestamp')
 
 @api_view(['GET'])
 @permission_classes([IsProfessor])
@@ -145,7 +136,6 @@ def list_presences_today_view(request):
     today = now.date()
     current_time = now.time()
 
-    # Trouver la session de présence active pour le professeur connecté
     try:
         session = SessionPresence.objects.get(
             planning__user=request.user,
@@ -157,16 +147,13 @@ def list_presences_today_view(request):
     except SessionPresence.DoesNotExist:
         return Response([], status=status.HTTP_200_OK)
 
-    # Récupérer tous les étudiants du cours
     expected_students = User.objects.filter(
         classe=session.planning.module.classe,
         roles__name='STUDENT'
     ).distinct()
 
-    # Récupérer les étudiants qui ont pointé
     present_students_ids = Pointage.objects.filter(session=session).values_list('user_id', flat=True)
 
-    # Construire la liste des étudiants avec leur statut
     student_list = []
     for student in expected_students:
         presence_status = "Présent" if student.id in present_students_ids else "Absent"
@@ -182,3 +169,12 @@ def list_presences_today_view(request):
     serializer = StudentPresenceSerializer(student_list, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+class StudentPointageHistoryView(generics.ListAPIView):
+    """
+    Vue pour qu'un étudiant puisse voir son historique de pointages.
+    """
+    serializer_class = PointageSerializer
+    permission_classes = [IsStudent]
+
+    def get_queryset(self):
+        return Pointage.objects.filter(user=self.request.user).order_by('-session__planning__date')
