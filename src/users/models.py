@@ -40,7 +40,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     password = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=8, blank=True)
 
-    fonction = models.CharField(max_length=150, blank=True)  #pour les personnels
 
     #Relation
     #Pour les etudiants
@@ -50,7 +49,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     #Pour les professeur
     modules = models.ManyToManyField(Module, related_name="users", blank=True)
     # Relation entre la table User et Role
-    roles = models.ManyToManyField(Role, related_name="users" )
+    role = models.ForeignKey(Role, related_name="users", on_delete=models.SET_NULL, null=True)
 
     # Dans votre modèle User backend
     date_joined = models.DateTimeField(default=timezone.now)

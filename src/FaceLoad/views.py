@@ -27,8 +27,8 @@ def dashboard_api_view(request):
     # Plannings du jour
     plannings_today = Planning.objects.filter(date=today)
     total_plannings_today = plannings_today.count()
-    validated_plannings = plannings_today.filter(validate=True).count()
-    cancelled_plannings = plannings_today.filter(his_state=True, validate=False).count()
+    validated_plannings = plannings_today.filter(is_validated_by_admin=True).count()
+    cancelled_plannings = plannings_today.filter(is_validated_by_professor=True, is_validated_by_admin=False).count()
     scheduled_plannings = total_plannings_today - validated_plannings - cancelled_plannings
 
     # Utilisateurs actifs
@@ -46,19 +46,19 @@ def dashboard_api_view(request):
     absences = Absence.objects.filter(statut='NON_JUSTIFIEE')
 
     # Données par Filière
-    filiere_data = absences.values('planning__module__filieres__name').annotate(count=Count('id')).order_by('-count')
-    filiere_labels = [item['planning__module__filieres__name'] for item in filiere_data if item['planning__module__filieres__name']]
-    filiere_counts = [item['count'] for item in filiere_data if item['planning__module__filieres__name']]
+    filiere_data = absences.values('planning__horaire__module__filieres__name').annotate(count=Count('id')).order_by('-count')
+    filiere_labels = [item['planning__horaire__module__filieres__name'] for item in filiere_data if item['planning__horaire__module__filieres__name']]
+    filiere_counts = [item['count'] for item in filiere_data if item['planning__horaire__module__filieres__name']]
 
     # Données par Module
-    module_data = absences.values('planning__module__name').annotate(count=Count('id')).order_by('-count')
-    module_labels = [item['planning__module__name'] for item in module_data if item['planning__module__name']]
-    module_counts = [item['count'] for item in module_data if item['planning__module__name']]
+    module_data = absences.values('planning__horaire__module__name').annotate(count=Count('id')).order_by('-count')
+    module_labels = [item['planning__horaire__module__name'] for item in module_data if item['planning__horaire__module__name']]
+    module_counts = [item['count'] for item in module_data if item['planning__horaire__module__name']]
 
     # Données par Classe
-    classe_data = absences.values('planning__module__classe__name').annotate(count=Count('id')).order_by('-count')
-    classe_labels = [item['planning__module__classe__name'] for item in classe_data if item['planning__module__classe__name']]
-    classe_counts = [item['count'] for item in classe_data if item['planning__module__classe__name']]
+    classe_data = absences.values('planning__horaire__module__classe__name').annotate(count=Count('id')).order_by('-count')
+    classe_labels = [item['planning__horaire__module__classe__name'] for item in classe_data if item['planning__horaire__module__classe__name']]
+    classe_counts = [item['count'] for item in classe_data if item['planning__horaire__module__classe__name']]
 
     # --- Construction de la réponse JSON ---
 

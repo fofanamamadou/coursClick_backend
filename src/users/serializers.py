@@ -66,13 +66,11 @@ class UserSerializer(serializers.ModelSerializer):
     # Champs d’écriture pour filière et classe (en ForeignKey)
     filiere = serializers.PrimaryKeyRelatedField(queryset=Filiere.objects.all(), allow_null=True)
     classe = serializers.PrimaryKeyRelatedField(queryset=Classe.objects.all(), allow_null=True)
+    role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), allow_null=True)
 
 
     #ManyToMany
-    roles = serializers.PrimaryKeyRelatedField(
-        queryset=Role.objects.all(),
-        many=True
-    )
+
     modules = serializers.PrimaryKeyRelatedField(
         queryset=Module.objects.all(),
         many=True,

@@ -12,6 +12,6 @@ urlpatterns = [
     path('validate/', ValidatePresenceView.as_view(), name='validate-presence'),
     path('presences/', PointageListView.as_view(), name='list-presences'),
     path('presences/today/', list_presences_today_view, name='list-presences-today'),
-    path('my-history/', StudentPointageHistoryView.as_view(), name='student-pointage-history'),
+    path('my-history-pointage/', StudentPointageHistoryView.as_view(), name='student-pointage-history'),
 
 ]

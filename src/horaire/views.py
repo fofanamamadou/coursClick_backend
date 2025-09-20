@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from  rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from .models import Horaire
+from users.permissions import IsProfessor, IsStudent
 from module.models import Module
 
 
@@ -65,7 +66,7 @@ def horaires_par_module(request, module_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsProfessor ])
 def horaires_professeur_view(request):
     """
     Récupère tous les horaires d’un professeur connecté à un jour donné (ex: ?jour=Lundi).
@@ -76,10 +77,6 @@ def horaires_professeur_view(request):
 
     user = request.user
 
-    # Vérifie si c’est bien un professeur
-    if not user.modules.exists():
-        return Response({'error': "Cet utilisateur n'est pas un professeur."}, status=status.HTTP_403_FORBIDDEN)
-
     horaires = Horaire.objects.filter(jours__iexact=jour, module__in=user.modules.all())
     serializer = HoraireSerializer(horaires, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -88,7 +85,7 @@ def horaires_professeur_view(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsStudent])
 def horaires_etudiant_view(request):
     """
     Récupère tous les horaires d’un étudiant connecté à un jour donné (ex: ?jour=Lundi).
@@ -98,10 +95,6 @@ def horaires_etudiant_view(request):
         return Response({'error': 'Le paramètre "jour" est requis.'}, status=status.HTTP_400_BAD_REQUEST)
 
     user = request.user
-
-    # Vérifie si c’est bien un étudiant
-    if not user.classe or not user.filiere:
-        return Response({'error': "Cet utilisateur n'est pas un étudiant."}, status=status.HTTP_403_FORBIDDEN)
 
     # Récupère tous les modules de la classe
     horaires = Horaire.objects.filter(jours__iexact=jour, module__in=user.modules.all())

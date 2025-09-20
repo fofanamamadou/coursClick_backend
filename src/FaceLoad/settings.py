@@ -14,8 +14,6 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 
-from django.conf.global_settings import AUTH_USER_MODEL, EMAIL_BACKEND, EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, \
-    EMAIL_HOST_PASSWORD, EMAIL_USE_TLS, EMAIL_USE_SSL, DEFAULT_FROM_EMAIL, STATICFILES_DIRS
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -99,13 +97,13 @@ WSGI_APPLICATION = "FaceLoad.wsgi.application"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config('DATABASE_NAME'),
-        "USER_NAME": config('DATABASE_USER_NAME'),
-        "PASSWORD": config('DATABASE_PASSWORD'),
-        "HOST": config('DATABASE_HOST'),
-        "PORT": config('DATABASE_PORT')
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DATABASE_NAME'),
+        'USER': config('DATABASE_USER_NAME'),
+        'PASSWORD': config('DATABASE_PASSWORD'),
+        'HOST': config('DATABASE_HOST', default='localhost'),
+        'PORT': config('DATABASE_PORT', default='5432'),
     }
 }
 
